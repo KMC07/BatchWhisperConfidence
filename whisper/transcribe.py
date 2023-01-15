@@ -8,17 +8,16 @@ from itertools import repeat
 import numpy as np
 import torch
 from torch import Tensor
-import tqdm
+from tqdm import tqdm
 
 from .audio import SAMPLE_RATE, N_FRAMES, HOP_LENGTH, pad_or_trim, log_mel_spectrogram, load_audio_waveform_img, remove_lower_quantile, wave_to_ts_filter
-from .decoding import DecodingOptions, DecodingResult
+from .decoding import DecodingOptions, DecodingResult, _get_new_attrs
 from .stabilization import stabilize_timestamps, add_whole_word_ts
 from .tokenizer import LANGUAGES, TO_LANGUAGE_CODE, get_tokenizer
 from .utils import exact_div, format_timestamp, optional_int, optional_float, str2bool, write_txt, write_vtt, write_srt
 
 if TYPE_CHECKING:
     from .model import Whisper
-
 
 # modified version of whisper.transcribe.transcribe
 def transcribe(
@@ -1068,15 +1067,6 @@ def batch_transcribe(
     return [dict(text=tokenizers[languages[i]].decode(
         [token for token in all_tokens[i][len(initial_prompt):] if token < tokenizers[languages[i]].eot]),
                  segments=all_segments[i], language=languages[i]) for i in range(len(all_segments))]
-
-def _suppress_ts(ts_logits: Tensor, suppress_ts_mask: Tensor = None):
-    if suppress_ts_mask is not None:
-        ts_logits[:, suppress_ts_mask] = -np.inf
-
-
-def _ts_topk(ts_logits: Tensor, k: int, prev_ts: Tensor = None) -> Tensor:
-    temp_ts = torch.stack(torch.topk(ts_logits, k, dim=-1), 0).unsqueeze(-2)
-    return temp_ts if prev_ts is None else torch.cat([prev_ts, temp_ts], dim=-2)
 
 
 def cli():

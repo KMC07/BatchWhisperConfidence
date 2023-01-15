@@ -15,6 +15,16 @@ from .utils import compression_ratio
 if TYPE_CHECKING:
     from .model import Whisper
 
+# no_caption changed to no_speech in newer whisper commits
+def _get_new_attrs(obj_, attr: str):
+    if attr == 'no_caption_probs':
+        return getattr(obj_, attr) if hasattr(obj_, 'no_caption_probs') else getattr(obj_, 'no_speech_probs')
+    elif attr == 'no_caption_prob':
+        return getattr(obj_, attr) if hasattr(obj_, 'no_caption_prob') else getattr(obj_, 'no_speech_prob')
+    elif attr == 'no_captions':
+        return getattr(obj_, attr) if hasattr(obj_, 'no_captions') else getattr(obj_, 'no_speech')
+    else:
+        raise NotImplementedError(attr)
 
 @torch.no_grad()
 def detect_language(model: "Whisper", mel: Tensor, tokenizer: Tokenizer = None) -> Tuple[Tensor, List[dict]]:
@@ -985,6 +995,15 @@ class DecodingTask:
             )
             for text, language, tokens, features, avg_logprob, no_speech_prob in zip(*fields)
         ]
+
+def _suppress_ts(ts_logits: Tensor, suppress_ts_mask: Tensor = None):
+    if suppress_ts_mask is not None:
+        ts_logits[:, suppress_ts_mask] = -np.inf
+
+
+def _ts_topk(ts_logits: Tensor, k: int, prev_ts: Tensor = None) -> Tensor:
+    temp_ts = torch.stack(torch.topk(ts_logits, k, dim=-1), 0).unsqueeze(-2)
+    return temp_ts if prev_ts is None else torch.cat([prev_ts, temp_ts], dim=-2)
 
 class DecodingTaskWordLevel(DecodingTask):
 
