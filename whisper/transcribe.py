@@ -7,6 +7,7 @@ from itertools import repeat
 
 import numpy as np
 import torch
+from torch import Tensor
 import tqdm
 
 from .audio import SAMPLE_RATE, N_FRAMES, HOP_LENGTH, pad_or_trim, log_mel_spectrogram, load_audio_waveform_img, remove_lower_quantile, wave_to_ts_filter
